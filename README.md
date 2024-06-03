@@ -7,7 +7,7 @@ This project introduces a novel permutation technique for hierarchical N:M(HiNM)
 Our contributions with the "Gyro-Permutation" technique include solutions to the following key aspects:
 1. **Hierarchical Pruning Awareness** - Ensuring the pruning process is aware of the hierarchical structure of neural networks.
 2. **Consistency across Layers** - Maintaining consistency in sparsity patterns across different layers of the network.
-3. **Escaping Local Minima** - We observed that existing permutation techniques can easily fall into local minima. Addressing this challenge is essential for enhancing the performance of HiNM pruning
+3. **Escaping Local Minima** - We observed that existing permutation techniques can easily fall into local minima. Addressing this challenge is essential for enhancing the performance of HiNM pruning.
 
 ## Getting Started
 
