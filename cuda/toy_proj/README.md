@@ -1,6 +1,6 @@
 # TOY Project of Hierarchical N:M sparsity
 
-# How To Run Toy Project
+# How to run toy project
 ## Step 1: Generate Binary Data
 ```bash
 mkdir bin_data && mkdir bin_data/hinm_data && mkdir bin_data/nm_data
