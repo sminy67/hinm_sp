@@ -13,8 +13,8 @@ Our contributions with the "Gyro-Permutation" technique include solutions to the
 
 ### Prerequisites
 To use this project, you will need:
-- Python 3.8 or newer
-- PyTorch 1.7 or newer
+- Python 3.10 or newer
+- PyTorch 2.1 or newer
 - CUDA-compatible GPUs
 
 ### Installation
