@@ -93,17 +93,6 @@ cd end2end/sten
 pip install .
 conda deactivate
 ```
-```bash
-cd sparseml
-conda env create -f sparseml.yml
-conda activate sparseml_artf
-python3.10 -m pip install -e .
-python3.10 uninstall transformers
-python3.10 -m pip install https://github.com/neuralmagic/transformers/releases/download/v1.5/transformers-4.23.1-py3-none-any.whl datasets scikit-learn seqeval pulp
-conda deactivate
-```
-
-## Step 2&3: Suppose the source code is in the path ```/projects/venom```. Then, follow the same ```Step 2&3``` instructions as described for docker containers
 
 # How to use. Examples:
 
