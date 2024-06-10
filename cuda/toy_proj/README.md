@@ -8,6 +8,6 @@ python3 gen_data.py -m <spatial dim of weight> -n <spatial dim of input> -k <red
 ```
 
 ## Step 2: Compile CUDA
-'''bash
+```bash
 /usr/local/cuda-<version>/bin/nvcc -arch <architecture> cuda_hinm_test.cu
-'''
+```
