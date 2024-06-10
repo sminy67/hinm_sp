@@ -20,6 +20,6 @@ To use this project, you will need:
 ### Installation
 Clone the repository and install the required packages:
 ```bash
-git clone https://github.com/yourgithubusername/gyro-permutation.git
-cd gyro-permutation
+git clone https://github.com/sminy67/hinm_sp.git
+cd hinm_sp
 pip install -r requirements.txt
