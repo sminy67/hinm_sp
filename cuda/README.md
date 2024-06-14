@@ -15,7 +15,7 @@ docker run -it –-gpus all venom_container
 
 ### Option 2: build the container from scratch
 ```bash
-git clone --recurse-submodules git@github.com:UDC-GAC/venom.git && cd venom
+git clone --recurse-submodules git@github.com:sminy67/hinm_sp.git && cd hinm_sp
 docker build -t venom_container .
 docker run -it --gpus all --name <your_container_name> venom_container
 ```
@@ -26,7 +26,7 @@ Compilation is already inlined in the scripts provided, so you can jump directly
 
 Build and install the centralized benchmarking tool:
 ```bash
-cd /projects/venom/
+cd /hinm_sp/cuda
 mkdir build && cd build
 # about 1 minute
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DCUDA_ARCHS="86" -DBASELINE=OFF -DIDEAL_KERNEL=OFF -DOUT_32B=OFF && make -j 16
@@ -50,28 +50,7 @@ cd end2end
 ./install.sh
 ```
 
-(1) To reproduce the results on Fig 9
-```bash
-cd /projects/venom/
-
-# about 1 hour
-./benchmark/run_ablation1.sh
-
-python plot/run_ablation1.py
-```
-
-(2) To reproduce the results on Fig 10
-
-```bash
-cd /projects/venom/
-
-# about 5 minutes
-./benchmark/run_ablation2.sh
-
-python plot/run_ablation2.py
-```
-
-(3) To reproduce the results on Fig 12
+(1) To reproduce the CUDA kernels
 
 ```bash
 cd /projects/venom/
@@ -84,7 +63,7 @@ python plot/run_baseline_a.py
 python plot/run_baseline_b.py
 ```
 
-(4) To reproduce the results on Fig 13
+(4) To run HiNM spmm
 
 ```bash
 cd /projects/venom/
@@ -95,54 +74,13 @@ cd /projects/venom/
 python plot/run_spmm_spatha.py
 ```
 
-(5) To reproduce the results on Fig 15
+(5) To run end2end
 
 ```bash
 conda activate end2end
 # about 10 minutes
 ./end2end/run_inference.sh
 python3 plot/run_inference.py
-```
-
-(6) To reproduce the results on Fig 11
-```bash
-conda activate end2end
-# about 6 minutes
-python3 benchmark/energy.py
-```
-
-(7) Since reproducing results on Table 2 can take a significant amount of time, we provide three different scripts to alleviate this process
-```bash
-conda activate sparseml_artf
-cd sparseml
-# Script that contains a subset of the experiments with the most aggressive configurations using the pair-wise version of the sparsifier
-# about 4 days
-./sparseml_SS1.sh
-# Script that contains all the sparsity-format configurations but relaxed with pair-wise version of the sparsifier
-# about 10 days
-./sparseml_SS2.sh
-# Script that contains all the sparsity-format configurations and performs the exhaustive search process
-# about 25 days
-./sparseml_SS3.sh
-```
-Note: each script in ```integrations/huggingface-transformers/scripts``` has two execution possibilities. Please, uncomment the first line if you want to use a single-GPU, or the second one with the total number of GPUs available for multiple-GPU execution.
-```bash
-#single-GPU
-CUDA_VISIBLE_DEVICES=0 python3.10 src/sparseml/transformers/question_answering.py \
-#multi-GPU (3 in this example)
-python3.10 -m torch.distributed.launch --nproc_per_node=3 src/sparseml/transformers/question_answering.py \
-````
-
-## Step 3: check plots
-```bash
-cd /projects/venom/result
-scp *.pdf username@hostmachine:/host/path/target
-```
-
-# Reproduction with source code
-## Step 1: Prepare code and setup python environments
-```bash
-git clone --recurse-submodules git@github.com:UDC-GAC/venom.git && cd venom
 ```
 
 Setup environments:
@@ -155,17 +93,6 @@ cd end2end/sten
 pip install .
 conda deactivate
 ```
-```bash
-cd sparseml
-conda env create -f sparseml.yml
-conda activate sparseml_artf
-python3.10 -m pip install -e .
-python3.10 uninstall transformers
-python3.10 -m pip install https://github.com/neuralmagic/transformers/releases/download/v1.5/transformers-4.23.1-py3-none-any.whl datasets scikit-learn seqeval pulp
-conda deactivate
-```
-
-## Step 2&3: Suppose the source code is in the path ```/projects/venom```. Then, follow the same ```Step 2&3``` instructions as described for docker containers
 
 # How to use. Examples:
 
