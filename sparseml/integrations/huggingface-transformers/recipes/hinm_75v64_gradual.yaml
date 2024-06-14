@@ -18,8 +18,7 @@ training_modifiers:
     init_lr: 5e-5
     final_lr: 5e-6
 
-  #- !OBSnmpairPruningModifier
-  - !HiNMPruningModifier
+  - !OBSHiNMPruningModifier
     params: [
      "re:bert.encoder.layer.*.attention.self.query.weight",
      "re:bert.encoder.layer.*.attention.self.key.weight",
@@ -42,5 +41,9 @@ training_modifiers:
     fisher_block_size: 32
     grad_sampler_kwargs:
      batch_size: 16
-    vec_size: 64
-    vec_sparsity: 0.5
+  
+distillation_modifiers:
+  - !DistillationModifier
+     hardness: 1.0
+     temperature: 2.0
+     distill_output_keys: [start_logits, end_logits]

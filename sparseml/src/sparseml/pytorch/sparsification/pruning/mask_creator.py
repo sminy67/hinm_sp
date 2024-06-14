@@ -900,8 +900,8 @@ class HiNMPruningMaskCreator(PruningMaskCreator):
         return masks
 
 def get_mask_creator_default(mask_type: Union[str, List[int]],
-                             vec_size: int = None,
-                             final_vec_sparsity : float = None) -> PruningMaskCreator:
+                             vec_size: int = 64,
+                             final_vec_sparsity : float = 0.5) -> PruningMaskCreator:
     """
     :param mask_type: type of mask creator to use, can be 'unstructured', for
         unstructured mask creator, 'block4' for 1x4 block pruning, 'N:M' where N and M

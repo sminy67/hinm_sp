@@ -43,17 +43,15 @@ from sparseml.utils import interpolate
 
 
 __all__ = [
-    "HiNMPruningModifier",
-    "HiNMPruningParamsScorer",
-    "EmpiricalBlockFisherInverse",
+    "OBSHiNMPruningModifier",
+    "OBSHiNMPruningParamsScorer",
 ]
-
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @PyTorchModifierYAML()
-class HiNMPruningModifier(BaseGradualPruningModifier):
+class OBSHiNMPruningModifier(BaseGradualPruningModifier):
     """
     As described in https://arxiv.org/abs/2203.07259
 
@@ -146,8 +144,6 @@ class HiNMPruningModifier(BaseGradualPruningModifier):
         fisher_block_size: int = 1,
         grad_sampler_kwargs: Optional[Dict[str, Any]] = None,
         num_recomputations: int = 1,
-        vec_size: int = 64,
-        vec_sparsity: float = 0.5,
     ):
         super().__init__(
             params=params,
@@ -168,8 +164,8 @@ class HiNMPruningModifier(BaseGradualPruningModifier):
         self._grad_sampler_kwargs = grad_sampler_kwargs
         self._num_recomputations = num_recomputations
         self._last_applied_sparsity = 0.0  # keep track for recomputations
-        self._V = vec_size
-        self._vec_sparsity = vec_sparsity
+        self._V = 64
+        self._vec_sparsity = 0.5
 
         self._grad_sampler = None
         self._supported_masks = ("unstructured", "block4", "hinm")
@@ -317,7 +313,7 @@ class HiNMPruningModifier(BaseGradualPruningModifier):
         :param params: list of Parameters for scorer to track
         :return: param scorer object to be used by this pruning algorithm
         """
-        return HiNMPruningParamsScorer(
+        return OBSHiNMPruningParamsScorer(
             params=params,
             num_grads=self._num_grads,
             damp=self._damp,
@@ -369,7 +365,7 @@ class HiNMPruningModifier(BaseGradualPruningModifier):
             os.environ[MEMORY_BOUNDED] = "True"  # more safe for most users
 
 
-class HiNMPruningParamsScorer(PruningParamsGradScorer):
+class OBSHiNMPruningParamsScorer(PruningParamsGradScorer):
     """
     Scores parameters using the equations introduced in the Optimal BERT Surgeon
     to solve for the optimal weight update in the Optimal Brain Surgeon (OBS)

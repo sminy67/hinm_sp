@@ -153,7 +153,7 @@ class OBS28v64pairPermPruningModifier(BaseGradualPruningModifier):
         leave_enabled: bool = True,
         inter_func: str = "cubic",
         global_sparsity: bool = True,
-        mask_type: str = "3:5",
+        mask_type: str = "hinm",
         num_grads: int = 1024,
         damp: float = 1e-7,
         fisher_block_size: int = 50,
@@ -181,7 +181,7 @@ class OBS28v64pairPermPruningModifier(BaseGradualPruningModifier):
         self._last_applied_sparsity = 0.  # keep track for recomputations steps
 
         self._grad_sampler = None
-        self._supported_masks = ("2:16", "3:16", "4:16", "5:16", "6:16", "7:16", "8:16", "9:16", "10:16", "11:16", "12:16", "6:8", "5:8", "4:8", "3:8", "2:8", "unstructured")
+        self._supported_masks = ("unstructued", "hinm")
 
         self._validate()
 
@@ -366,11 +366,12 @@ class OBS28v64pairPermPruningModifier(BaseGradualPruningModifier):
 
 
 class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
-    """
+   """
     Scores parameters using the equations introduced in the Optimal BERT Surgeon
     to solve for the optimal weight update in the Optimal Brain Surgeon (OBS)
     framework. Implements unstructured and semi-structured (block4) scoring and
     pruning.
+
     :param params: list of model Parameters to track and score
     :param num_grads: number of gradients used to calculate the Fisher approximation
     :param damp: dampening factor, default is 1e-7
@@ -386,7 +387,7 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
         fisher_block_size: int,
         mask_type: str,
     ):
-        super().__init__(params)
+        super().__init__(params, dist_backend="nccl")
         self._num_grads = num_grads
         self._damp = damp
         self._fisher_block_size = fisher_block_size
@@ -419,55 +420,6 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
         )
         self._validate()
 
-    def add_perm_list(self, perm_list):
-        self._perm_list = perm_list
-    
-    @torch.no_grad()
-    def perm_matrix(self, out_perm, in_perm, matrix):
-        out_channels, in_channels = matrix.shape
-        assert (out_channels == len(out_perm)) and (in_channels == in_perm.shape[1]), \
-            "Permuting matrix shape != param shape"
-
-        is_gpu = False 
-        if matrix.device.type == "cuda":
-            device = matrix.device
-            matrix = matrix.to("cpu")
-            is_gpu = True
-
-        out_perm_matrix = matrix[out_perm].view(out_channels // 64, 64, -1)
-        in_perm_matrix = torch.gather(out_perm_matrix, -1, in_perm.unsqueeze(1).expand(-1, 64, -1)).view(out_channels, in_channels)
-
-        if is_gpu == True:
-            in_perm_matrix = in_perm_matrix.to(device)
-        return in_perm_matrix
-    
-    @torch.no_grad()
-    def inverted_perm_matrix(self, out_perm, in_perm, matrix):
-        assert (matrix.shape[0] == len(out_perm)) and (matrix.shape[1] == in_perm.shape[1]), \
-            "Permuting matrix shape != param shape"
-        
-        is_gpu = False 
-        if matrix.device.type == "cuda":
-            device = matrix.device
-            matrix = matrix.to("cpu")
-            is_gpu = True
-    
-        out_channels, in_channels = matrix.shape
-        inverted_in_perm = torch.argsort(in_perm, dim=1)
-        matrix = matrix.view(out_channels // 64, 64, -1)
-        inverted_in_perm_matrix = torch.gather(matrix, -1, inverted_in_perm.unsqueeze(1).expand(-1, 64, -1))
-        
-        inverted_out_perm= torch.argsort(out_perm)
-        inverted_out_perm_matrix = inverted_in_perm_matrix.view(out_channels, in_channels)[inverted_out_perm]
-
-        if is_gpu == True:
-            inverted_out_perm_matrix = inverted_out_perm_matrix.to(device)        
-        return inverted_out_perm_matrix
-
-    @torch.no_grad()
-    def bool_to_index(self, tensor_bool):
-        return torch.nonzero(tensor_bool).squeeze()
-
     @torch.no_grad()
     def score_parameters(self) -> List[Tensor]:
         """
@@ -476,39 +428,16 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
         """
         scores = [None] * len(self._params)
 
-        # Change depending on your n:m pattern and V value. Examples
-        nm = {0.0:(2,8), 0.25:(3,8), 0.375:(4,8), 0.5:(6,8)}
-
-        sparsity = self._last_applied_sparsity
-        n_el, m_el = nm[sparsity]
-        vec_size = 64
-        vec_sparsity = (n_el / m_el) if sparsity < 0.5 else 0.5
-        n,m = (0, 0) if sparsity != 0.5 else (2, 4)
-        
         if self._is_main_proc:
             for i, finv in enumerate(self._finvs):
-                scores[i] = (
-                    (self._params[i].data.view(-1) ** 2).to(self._devices[i])
-                    / (2.0 * finv.diag() + self._eps)
-                ).view(self._params[i].shape)
-                score = scores[i].to("cpu")
-                _LOGGER.info(f"Permutation for {i}-th layer with matrix size : {score.shape[0]} x {score.shape[1]}")
-                if n == 0:
-                    scores[i] = apply_out_perm(score=score,
-                                               vec_size=vec_size,
-                                               vec_sparsity=vec_sparsity).to(self._devices[i])
-                else:
-                    scores[i] = apply_gyro_perm(score=score,
-                                                vec_size=vec_size,
-                                                vec_sparsity=vec_sparsity,
-                                                n = n,
-                                                m = m).to(self._devices[i])
+                    scores[i] = (
+                        (self._params[i].data.reshape(-1) ** 2).to(self._devices[i])
+                        / (2.0 * finv.diag() + self._eps)
+                    ).reshape(self._params[i].shape)
 
-        _LOGGER.info("_last_applied_sparsity "+ str(n_el) + " " + str(m_el) + " " + str(sparsity))
-
-        # make sure pruned ones will stay pruned
-        for i, score in enumerate(scores):
-            score[self._masks[i] == 0] = float("-inf")
+            # make sure pruned ones will stay pruned
+            for i, score in enumerate(scores):
+                score[self._masks[i] == 0] = float("-inf")
 
         self._broadcast_list_from_main(scores)
 
@@ -518,9 +447,9 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
     def pre_optim_step_update(self, masks: List[Tensor]):
         """
         Update the empirical inverse Fisher estimation based on the current gradients
+
         :param masks: latest masks that are applied to these parameters
         """
-        #_LOGGER.info(f"pre_optim_step_update() method")
         if not self._enabled_grad_buffering:
             # only collect gradients when called during pruning step
             # this ignores calls invoked by manager during training
@@ -531,13 +460,14 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
 
         for i, finv in enumerate(self._finvs):
             self._params[i].grad.mul_(masks[i])
-            finv.add_grad(self._params[i].grad.view(-1).to(self._devices[i]))
+            finv.add_grad(self._params[i].grad.reshape(-1).to(self._devices[i]))
 
     @torch.no_grad()
     def mask_update(self, masks: List[Tensor], mask_diffs: List[Tensor]):
         """
         Apply OBS weight update which zeros-out pruned weights and updates the
         remaining weights to preserve the loss.
+
         :param masks: latest masks to be applied to these parameters
         :param mask_diffs: mask diff values returned by mask_difference for these
             masks that describe how these masks changed since the last update
@@ -549,11 +479,11 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
                     self._finvs[i]
                     .mul(
                         (param.data * (mask_diffs[i] == -1))
-                        .view(-1)
+                        .reshape(-1)
                         .to(self._devices[i])
                         / (self._finvs[i].diag() + self._eps)
                     )
-                    .view(param.data.shape)
+                    .reshape(param.data.shape)
                 )
 
         self._broadcast_list_from_main(obs_updates)
@@ -567,9 +497,11 @@ class OBS28v64pairPermPruningParamsScorer(PruningParamsGradScorer):
     def _validate(self):
         if self._mask_type == "block4":
             for param in self._params:
-                assert (
-                    param.numel() % self._fisher_block_size == 0
-                ), "number of elements in each param must be divisible by fisher_block_size"
+                if param.numel() % self._fisher_block_size != 0:
+                    raise ValueError(
+                        "number of elements in each param must be divisible \
+                        by fisher_block_size"
+                    )
 
     def _setup_fisher_inverse(self, masks: List[Tensor]):
         self._masks = masks  # to be used by score_parameters
@@ -620,7 +552,7 @@ class EmpiricalBlockFisherInverse:
             )
 
         # prepare grad for batch calculations
-        g = g.view(self.num_blocks, self.B)
+        g = g.reshape(self.num_blocks, self.B)
 
         # batched f_inv x g: (batch, B, B) x (batch, B) -> (batch, B)
         finv_g = torch.einsum("bij,bj->bi", self.f_inv, g)
@@ -649,5 +581,5 @@ class EmpiricalBlockFisherInverse:
                 [v, torch.zeros(self.num_blocks * self.B - v.numel(), device=v.device)]
             )
         return torch.bmm(
-            self.f_inv, v.view(self.num_blocks, self.B).unsqueeze_(2)
+            self.f_inv, v.reshape(self.num_blocks, self.B).unsqueeze_(2)
         ).flatten()[: self.d]

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export YAML_NAME=hinm_v64_gradual
+export YAML_NAME=hinm_75v64_gradual
 export RECIPE=integrations/huggingface-transformers/recipes/${YAML_NAME}.yaml
 
 #uncomment to run on a single-gpu
@@ -18,7 +18,7 @@ CUDA_VISIBLE_DEVICES=0 python3.10 src/sparseml/transformers/question_answering.p
 --save_total_limit 3 \
 --per_device_train_batch_size 16 \
 --per_device_eval_batch_size 16 \
---learning_rate 8e-5 \
+--learning_rate 6e-5 \
 --max_seq_length 384 \
 --doc_stride 128 \
 --preprocessing_num_workers 8 \

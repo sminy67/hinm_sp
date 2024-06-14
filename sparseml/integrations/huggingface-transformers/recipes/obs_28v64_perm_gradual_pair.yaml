@@ -15,8 +15,8 @@ training_modifiers:
     end_epoch: 50.0
     lr_func: cyclic_linear
     cycle_epochs: 4.0
-    init_lr: 8e-5
-    final_lr: 8e-6
+    init_lr: 5e-5
+    final_lr: 5e-6
 
   #- !OBSnmpairPruningModifier
   - !OBS28v64pairPermPruningModifier
@@ -36,7 +36,7 @@ training_modifiers:
     inter_func: linear
     global_sparsity: True
     #mask_type: "5:8"
-    mask_type: unstructured
+    mask_type: hinm
     num_grads: 1024
     damp: 1e-7
     fisher_block_size: 32

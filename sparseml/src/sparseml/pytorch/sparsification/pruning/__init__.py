@@ -59,6 +59,7 @@ from .modifier_pruning_216_pairwise_obs_v64 import *
 from .modifier_pruning_28_pairwise_obs_v128 import *
 from .modifier_pruning_216_pairwise_obs_v128 import *
 
+from .modifier_pruning_hinm import *
 from .modifier_pruning_28_pairwise_obs_v64_perm import *
 from .modifier_pruning_28_pairwise_obs_v128_perm import *
 from .modifier_pruning_216_pairwise_obs_v64_perm import *
